@@ -17,10 +17,9 @@ type Gymmember struct {
 }
 
 type Exercise struct {
-	Name            string   `json:"name"`
-	Description     string   `json:"description"`
-	MuscleGroups    []string `json:"muscle_groups"`
-	EquipmnetNeeded []string `json:"equipment_needed"`
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type Dietinformation struct {

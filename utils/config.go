@@ -20,6 +20,7 @@ func InitLogger() {
 
 type Configuration struct {
 	Dbcfg     DbConfig `envconfig:"DB"`
+	Exurl     string   `required:"true" split_words:"true"`
 	Servercfg ServerConfig
 }
 

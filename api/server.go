@@ -22,11 +22,11 @@ func NewApiServer(listenAddress string, store storage.Storage) *APIServer {
 		Store:         store,
 	}
 }
-
 func (s *APIServer) Run() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/member", makeHttpHandleFunc(s.HandleMembers))
+	router.HandleFunc("/exercise", makeHttpHandleFunc(s.HandleGetExercises))
 	addr := fmt.Sprintf(":%s", s.ListenAddress)
 	utils.Logger.Info(fmt.Sprintf("json api server is running on port %s", s.ListenAddress))
 
