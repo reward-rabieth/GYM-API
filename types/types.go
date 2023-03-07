@@ -18,7 +18,7 @@ type Gymmember struct {
 }
 
 type Exercise struct {
-	ID           int      `json:"id"`
+	//ID           int      `json:"id"`
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
 	MuscleGroups []string `json:"muscle_groups"`

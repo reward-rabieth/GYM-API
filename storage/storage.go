@@ -115,7 +115,6 @@ func (p *PostgresStorage) GetMembers() ([]*types.Gymmember, error) {
 
 func (p *PostgresStorage) CreateExerciseTable() error {
 	query := `CREATE TABLE IF NOT EXISTS exercises(
-		id SERIAL PRIMARY KEY,
 		name varchar(255),
 		description varchar(255),
 		muscle_groups varchar(255),
@@ -130,11 +129,10 @@ func (p *PostgresStorage) CreateExerciseTable() error {
 
 func (p *PostgresStorage) CreateExercise(exercise *types.Exercise) error {
 	query := `INSERT INTO exercises
-	(id,name,description,muscle_groups,equipment,sets,reps)
-    values($1,$2,$3,$4,$5,$6,$7)
+	(name,description,muscle_groups,equipment,sets,reps)
+    values($1,$2,$3,$4,$5,$6)
 	`
 	_, err := p.db.Query(query,
-		exercise.ID,
 		exercise.Name,
 		exercise.Description,
 		strings.Join(exercise.MuscleGroups, ", "),
@@ -181,7 +179,7 @@ func scanIntoExercises(rows *sql.Rows) (*types.Exercise, error) {
 	exerciseDB := new(exerciseDB)
 
 	err := rows.Scan(
-		&exerciseDB.ID,
+		//&exerciseDB.ID,
 		&exerciseDB.Name,
 		&exerciseDB.Description,
 		&exerciseDB.MuscleGroups,
@@ -196,7 +194,7 @@ func scanIntoExercises(rows *sql.Rows) (*types.Exercise, error) {
 	equipment := strings.Split(exerciseDB.Equipment, ", ")
 
 	return &types.Exercise{
-		ID:           exerciseDB.ID,
+		//ID:           exerciseDB.ID,
 		Name:         exerciseDB.Name,
 		Description:  exerciseDB.Description,
 		MuscleGroups: strings.Split(exerciseDB.MuscleGroups, ", "),
