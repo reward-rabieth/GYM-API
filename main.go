@@ -22,4 +22,5 @@ func main() {
 
 	server := api.NewApiServer(cfg.Servercfg.Port, store)
 	server.Run()
+
 }

@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/lib/pq"
 	"github.com/reward-rabieth/gym/types"
@@ -14,6 +15,8 @@ import (
 type Storage interface {
 	CreateMember(*types.Gymmember) error
 	GetMembers() ([]*types.Gymmember, error)
+	GetExercises() ([]*types.Exercise, error)
+	CreateExercise(*types.Exercise) error
 }
 
 type PostgresStorage struct {
@@ -39,7 +42,13 @@ func NewPostgresStorage(cfg utils.DbConfig) (*PostgresStorage, error) {
 }
 
 func (p *PostgresStorage) Init() error {
-	return p.CreateMemberTable()
+	if err := p.CreateMemberTable(); err != nil {
+		return err
+	}
+	if err := p.CreateExerciseTable(); err != nil {
+		return err
+	}
+	return nil
 
 }
 
@@ -87,7 +96,7 @@ func (p *PostgresStorage) CreateMember(member *types.Gymmember) error {
 }
 
 func (p *PostgresStorage) GetMembers() ([]*types.Gymmember, error) {
-	rows, err := p.db.Query("select from *members")
+	rows, err := p.db.Query("select * from members")
 	if err != nil {
 		return nil, err
 	}
@@ -102,6 +111,99 @@ func (p *PostgresStorage) GetMembers() ([]*types.Gymmember, error) {
 		members = append(members, member)
 	}
 	return members, err
+}
+
+func (p *PostgresStorage) CreateExerciseTable() error {
+	query := `CREATE TABLE IF NOT EXISTS exercises(
+		id SERIAL PRIMARY KEY,
+		name varchar(255),
+		description varchar(255),
+		muscle_groups varchar(255),
+		equipment varchar(255),
+		sets int,
+		reps int
+	);`
+	_, err := p.db.Query(query)
+
+	return err
+}
+
+func (p *PostgresStorage) CreateExercise(exercise *types.Exercise) error {
+	query := `INSERT INTO exercises
+	(id,name,description,muscle_groups,equipment,sets,reps)
+    values($1,$2,$3,$4,$5,$6,$7)
+	`
+	_, err := p.db.Query(query,
+		exercise.ID,
+		exercise.Name,
+		exercise.Description,
+		strings.Join(exercise.MuscleGroups, ", "),
+		strings.Join(exercise.Equipment, ", "),
+		exercise.Sets,
+		exercise.Reps,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *PostgresStorage) GetExercises() ([]*types.Exercise, error) {
+	rows, err := p.db.Query("select * from exercises")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	exercis := []*types.Exercise{}
+
+	for rows.Next() {
+		exercise, err := scanIntoExercises(rows)
+		if err != nil {
+			return nil, err
+		}
+		exercis = append(exercis, exercise)
+	}
+	return exercis, err
+
+}
+
+type exerciseDB struct {
+	ID           int
+	Name         string
+	Description  string
+	MuscleGroups string
+	Equipment    string
+	Sets         int
+	Reps         int
+}
+
+func scanIntoExercises(rows *sql.Rows) (*types.Exercise, error) {
+	exerciseDB := new(exerciseDB)
+
+	err := rows.Scan(
+		&exerciseDB.ID,
+		&exerciseDB.Name,
+		&exerciseDB.Description,
+		&exerciseDB.MuscleGroups,
+		&exerciseDB.Equipment,
+		&exerciseDB.Sets,
+		&exerciseDB.Reps,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	equipment := strings.Split(exerciseDB.Equipment, ", ")
+
+	return &types.Exercise{
+		ID:           exerciseDB.ID,
+		Name:         exerciseDB.Name,
+		Description:  exerciseDB.Description,
+		MuscleGroups: strings.Split(exerciseDB.MuscleGroups, ", "),
+		Equipment:    equipment,
+		Sets:         exerciseDB.Sets,
+		Reps:         exerciseDB.Reps,
+	}, nil
 }
 
 func scanIntoMembers(rows *sql.Rows) (*types.Gymmember, error) {

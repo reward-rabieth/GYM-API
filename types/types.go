@@ -1,6 +1,7 @@
 package types
 
 import (
+	"strings"
 	"time"
 )
 
@@ -17,9 +18,13 @@ type Gymmember struct {
 }
 
 type Exercise struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	ID           int      `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	MuscleGroups []string `json:"muscle_groups"`
+	Equipment    []string `json:"equipment"`
+	Sets         int      `json:"sets"`
+	Reps         int      `json:"reps"`
 }
 
 type Dietinformation struct {
@@ -76,4 +81,26 @@ func NewGymMember(req CreateGymMemberRequest) (*Gymmember, error) {
 			PersonalTrainer: req.PersonalTrainer,
 		},
 		nil
+}
+
+type CreateNewExerciseRequest struct {
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	MuscleGroups []string `json:"muscle_groups"`
+	Equipment    []string `json:"-"`
+	EquipmentStr string   `json:"equipment"`
+	Sets         int      `json:"sets"`
+	Reps         int      `json:"reps"`
+}
+
+func NewExercise(req CreateNewExerciseRequest) (*Exercise, error) {
+	equipment := strings.Split(req.EquipmentStr, ",")
+	return &Exercise{
+		Name:         req.Name,
+		Description:  req.Description,
+		MuscleGroups: req.MuscleGroups,
+		Equipment:    equipment,
+		Sets:         req.Sets,
+		Reps:         req.Reps,
+	}, nil
 }
