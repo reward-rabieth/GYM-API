@@ -145,7 +145,6 @@ func (p *PostgresStorage) CreateExercise(exercise *types.Exercise) error {
 	}
 	return nil
 }
-
 func (p *PostgresStorage) GetExercises() ([]*types.Exercise, error) {
 	rows, err := p.db.Query("select * from exercises")
 	if err != nil {
@@ -179,7 +178,7 @@ func scanIntoExercises(rows *sql.Rows) (*types.Exercise, error) {
 	exerciseDB := new(exerciseDB)
 
 	err := rows.Scan(
-		//&exerciseDB.ID,
+		&exerciseDB.ID,
 		&exerciseDB.Name,
 		&exerciseDB.Description,
 		&exerciseDB.MuscleGroups,
@@ -194,7 +193,7 @@ func scanIntoExercises(rows *sql.Rows) (*types.Exercise, error) {
 	equipment := strings.Split(exerciseDB.Equipment, ", ")
 
 	return &types.Exercise{
-		//ID:           exerciseDB.ID,
+		//	ID:           exerciseDB.ID,
 		Name:         exerciseDB.Name,
 		Description:  exerciseDB.Description,
 		MuscleGroups: strings.Split(exerciseDB.MuscleGroups, ", "),

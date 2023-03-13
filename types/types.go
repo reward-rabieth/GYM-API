@@ -95,6 +95,9 @@ type CreateNewExerciseRequest struct {
 
 func NewExercise(req CreateNewExerciseRequest) (*Exercise, error) {
 	equipment := strings.Split(req.EquipmentStr, ",")
+	for i, e := range equipment {
+		equipment[i] = strings.TrimSpace(e)
+	}
 	return &Exercise{
 		Name:         req.Name,
 		Description:  req.Description,
