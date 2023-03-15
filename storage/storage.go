@@ -17,6 +17,7 @@ type Storage interface {
 	GetMembers() ([]*types.Gymmember, error)
 	GetExercises() ([]*types.Exercise, error)
 	CreateExercise(*types.Exercise) error
+	GetMemberByid(int) (*types.Gymmember, error)
 }
 
 type PostgresStorage struct {
@@ -55,6 +56,7 @@ func (p *PostgresStorage) Init() error {
 func (p *PostgresStorage) CreateMemberTable() error {
 
 	query := `CREATE TABLE IF NOT EXISTS members(
+		id serial primary key,
 		name varchar(255),
 		age int,
 		gender varchar(255),
@@ -94,7 +96,18 @@ func (p *PostgresStorage) CreateMember(member *types.Gymmember) error {
 	}
 	return nil
 }
+func (P *PostgresStorage) GetMemberByid(id int) (*types.Gymmember, error) {
 
+	rows, err := P.db.Query("select * from membeers where id=$1", id)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		return scanIntoMembers(rows)
+	}
+	return nil, fmt.Errorf("member %d not found", id)
+
+}
 func (p *PostgresStorage) GetMembers() ([]*types.Gymmember, error) {
 	rows, err := p.db.Query("select * from members")
 	if err != nil {

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
-	jwt "github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v4"
+
 	"github.com/gorilla/mux"
 	"github.com/reward-rabieth/gym/storage"
 	"github.com/reward-rabieth/gym/types"
@@ -30,7 +32,8 @@ func NewApiServer(listenAddress string, store storage.Storage) *APIServer {
 func (s *APIServer) Run() {
 
 	router := mux.NewRouter()
-	router.HandleFunc("/member", WithJwtAuth(makeHttpHandleFunc(s.HandleMembers)))
+	router.HandleFunc("/member", WithJwtAuth((makeHttpHandleFunc(s.HandleMembers))))
+	router.HandleFunc("/member/{id}", makeHttpHandleFunc(s.HandleGetMemberByid))
 	router.HandleFunc("/exercise", makeHttpHandleFunc(s.HandleExercises))
 	addr := fmt.Sprintf(":%s", s.ListenAddress)
 	utils.Logger.Info(fmt.Sprintf("json api server is running on port %s", s.ListenAddress))
@@ -93,6 +96,24 @@ func (s *APIServer) HandleGetMembers(w http.ResponseWriter, r *http.Request) err
 	return WriteJson(w, http.StatusOK, members)
 }
 
+func (s *APIServer) HandleGetMemberByid(w http.ResponseWriter, r *http.Request) error {
+
+	if r.Method == "GET" {
+		id, err := GetId(r)
+		if err != nil {
+			return err
+		}
+
+		member, err := s.Store.GetMemberByid(id)
+
+		if err != nil {
+			return err
+		}
+
+		return WriteJson(w, http.StatusOK, member)
+	}
+	return fmt.Errorf("method is not allowed")
+}
 func (s *APIServer) HandleCreateMember(w http.ResponseWriter, r *http.Request) error {
 
 	req := new(types.CreateGymMemberRequest)
@@ -107,6 +128,14 @@ func (s *APIServer) HandleCreateMember(w http.ResponseWriter, r *http.Request) e
 	if err := s.Store.CreateMember(member); err != nil {
 		return err
 	}
+	tokenString, err := createJwt(member)
+	if err != nil {
+
+		fmt.Println("error in creating jwt", err)
+		return err
+	}
+	fmt.Println("jwt token", tokenString)
+
 	return WriteJson(w, http.StatusOK, member)
 }
 func (s *APIServer) HandleCreateExercise(w http.ResponseWriter, r *http.Request) error {
@@ -128,11 +157,28 @@ func (s *APIServer) HandleCreateExercise(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *APIServer) HandleGetExercises(w http.ResponseWriter, r *http.Request) error {
+	fmt.Println("hello world")
+
 	exercise, err := s.Store.GetExercises()
 	if err != nil {
 		return err
 	}
 	return WriteJson(w, http.StatusOK, exercise)
+
+}
+
+func createJwt(member *types.Gymmember) (string, error) {
+
+	claims := &jwt.MapClaims{
+		"ExpiresAt": 1500,
+		"ID":        member.ID,
+	}
+	secret := os.Getenv("JWT_SECRET")
+	fmt.Println("token")
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return token.SignedString([]byte(secret))
 
 }
 
@@ -142,11 +188,13 @@ func WithJwtAuth(handlefunc http.HandlerFunc) http.HandlerFunc {
 		fmt.Println("calling with jwt auth middleware ")
 
 		tokenstring := r.Header.Get("x-jwt-token")
-		token, err := validateJWT(tokenstring)
+		_, err := validateJWT(tokenstring)
 
 		if err != nil {
 
 			WriteJson(w, http.StatusForbidden, ApiError{Error: "invalid token"})
+
+			return
 		}
 		handlefunc(w, r)
 	}
@@ -160,11 +208,21 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
 		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
 		return []byte(secret), nil
 	})
+
+}
+func GetId(r *http.Request) (int, error) {
+	//conver the id from string to int
+	idstr := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idstr)
+	if err != nil {
+		return id, fmt.Errorf("invalid id given %s", idstr)
+	}
+	return id, nil
 
 }
