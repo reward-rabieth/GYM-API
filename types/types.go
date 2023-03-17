@@ -1,12 +1,14 @@
 package types
 
 import (
+	"math/rand"
 	"strings"
 	"time"
 )
 
 type Gymmember struct {
 	ID              int       `json:"id"`
+	Number          int64     `json:"membership_no"`
 	Name            string    `json:"name"`
 	Age             int       `json:"age"`
 	Gender          string    `json:"gender"`
@@ -73,6 +75,7 @@ func NewGymMember(req CreateGymMemberRequest) (*Gymmember, error) {
 	return &Gymmember{
 			Name:       req.Name,
 			Age:        req.Age,
+			Number:     int64(rand.Intn(1000)),
 			Gender:     req.Gender,
 			Height:     req.Height,
 			Weight:     req.Weight,

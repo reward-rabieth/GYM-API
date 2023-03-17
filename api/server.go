@@ -32,8 +32,8 @@ func NewApiServer(listenAddress string, store storage.Storage) *APIServer {
 func (s *APIServer) Run() {
 
 	router := mux.NewRouter()
-	router.HandleFunc("/member", WithJwtAuth((makeHttpHandleFunc(s.HandleMembers))))
-	router.HandleFunc("/member/{id}", makeHttpHandleFunc(s.HandleGetMemberByid))
+	router.HandleFunc("/member", (makeHttpHandleFunc(s.HandleMembers)))
+	router.HandleFunc("/member/{id}", WithJwtAuth(makeHttpHandleFunc(s.HandleGetMemberByid), s.Store))
 	router.HandleFunc("/exercise", makeHttpHandleFunc(s.HandleExercises))
 	addr := fmt.Sprintf(":%s", s.ListenAddress)
 	utils.Logger.Info(fmt.Sprintf("json api server is running on port %s", s.ListenAddress))
@@ -134,7 +134,7 @@ func (s *APIServer) HandleCreateMember(w http.ResponseWriter, r *http.Request) e
 		fmt.Println("error in creating jwt", err)
 		return err
 	}
-	fmt.Println("jwt token", tokenString)
+	fmt.Println("Jwt  token:", tokenString)
 
 	return WriteJson(w, http.StatusOK, member)
 }
@@ -157,7 +157,6 @@ func (s *APIServer) HandleCreateExercise(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *APIServer) HandleGetExercises(w http.ResponseWriter, r *http.Request) error {
-	fmt.Println("hello world")
 
 	exercise, err := s.Store.GetExercises()
 	if err != nil {
@@ -170,11 +169,11 @@ func (s *APIServer) HandleGetExercises(w http.ResponseWriter, r *http.Request) e
 func createJwt(member *types.Gymmember) (string, error) {
 
 	claims := &jwt.MapClaims{
-		"ExpiresAt": 1500,
-		"ID":        member.ID,
+
+		"membersId": member.Number,
+		"expiresAt": 1500,
 	}
 	secret := os.Getenv("JWT_SECRET")
-	fmt.Println("token")
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
@@ -182,13 +181,13 @@ func createJwt(member *types.Gymmember) (string, error) {
 
 }
 
-func WithJwtAuth(handlefunc http.HandlerFunc) http.HandlerFunc {
+func WithJwtAuth(handlefunc http.HandlerFunc, s storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Println("calling with jwt auth middleware ")
 
 		tokenstring := r.Header.Get("x-jwt-token")
-		_, err := validateJWT(tokenstring)
+		token, err := validateJWT(tokenstring)
 
 		if err != nil {
 
@@ -196,6 +195,39 @@ func WithJwtAuth(handlefunc http.HandlerFunc) http.HandlerFunc {
 
 			return
 		}
+
+		if !token.Valid {
+
+			WriteJson(w, http.StatusForbidden, ApiError{Error: "invalid token"})
+			return
+		}
+
+		memberId, err := GetId(r)
+
+		if err != nil {
+			WriteJson(w, http.StatusForbidden, ApiError{Error: "invalid token"})
+			return
+		}
+		member, err := s.GetMemberByid(memberId)
+		if err != nil {
+			WriteJson(w, http.StatusForbidden, ApiError{Error: "invalid token"})
+			return
+		}
+
+		claims := token.Claims.(jwt.MapClaims)
+
+		//	panic(reflect.TypeOf(claims["membersId"]))
+
+		if member.Number != int64(claims["membersId"].(float64)) {
+			WriteJson(w, http.StatusForbidden, ApiError{Error: "invalid token"})
+			return
+		}
+		if err != nil {
+			WriteJson(w, http.StatusForbidden, ApiError{Error: "invalid token"})
+			return
+		}
+
+		fmt.Println(claims)
 		handlefunc(w, r)
 	}
 

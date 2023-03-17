@@ -57,6 +57,7 @@ func (p *PostgresStorage) CreateMemberTable() error {
 
 	query := `CREATE TABLE IF NOT EXISTS members(
 		id serial primary key,
+		number serial,
 		name varchar(255),
 		age int,
 		gender varchar(255),
@@ -76,11 +77,12 @@ func (p *PostgresStorage) CreateMemberTable() error {
 func (p *PostgresStorage) CreateMember(member *types.Gymmember) error {
 
 	query := `INSERT INTO members 
-	(name,age,gender,height,weight,membership,start_date,end_date,personal_trainer)
-	values($1,$2,$3,$4,$5,$6,$7,$8,$9)
+	 (number, name,age,gender,height,weight,membership,start_date,end_date,personal_trainer)
+	values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 	`
 	_, err := p.db.Query(
 		query,
+		member.Number,
 		member.Name,
 		member.Age,
 		member.Gender,
@@ -98,7 +100,7 @@ func (p *PostgresStorage) CreateMember(member *types.Gymmember) error {
 }
 func (P *PostgresStorage) GetMemberByid(id int) (*types.Gymmember, error) {
 
-	rows, err := P.db.Query("select * from membeers where id=$1", id)
+	rows, err := P.db.Query("select * from members where id=$1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -220,6 +222,8 @@ func scanIntoMembers(rows *sql.Rows) (*types.Gymmember, error) {
 	member := new(types.Gymmember)
 
 	err := rows.Scan(
+		&member.ID,
+		&member.Number,
 		&member.Name,
 		&member.Age,
 		&member.Gender,
