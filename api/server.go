@@ -32,7 +32,8 @@ func NewApiServer(listenAddress string, store storage.Storage) *APIServer {
 func (s *APIServer) Run() {
 
 	router := mux.NewRouter()
-	router.HandleFunc("/member", (makeHttpHandleFunc(s.HandleMembers)))
+	router.HandleFunc("/login", makeHttpHandleFunc(s.HandleLogin))
+	router.HandleFunc("/member", makeHttpHandleFunc(s.HandleMembers))
 	router.HandleFunc("/member/{id}", WithJwtAuth(makeHttpHandleFunc(s.HandleGetMemberByid), s.Store))
 	router.HandleFunc("/exercise", makeHttpHandleFunc(s.HandleExercises))
 	addr := fmt.Sprintf(":%s", s.ListenAddress)
@@ -73,6 +74,35 @@ func (s *APIServer) HandleMembers(w http.ResponseWriter, r *http.Request) error 
 		return s.HandleCreateMember(w, r)
 	}
 	return fmt.Errorf("method is not allowed %s", r.Method)
+}
+
+func (s *APIServer) HandleLogin(w http.ResponseWriter, r *http.Request) error {
+
+	if r.Method != "POST" {
+		return fmt.Errorf("method is not allowed %s", r.Method)
+	}
+	var req types.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return err
+	}
+	member, err := s.Store.GetMemberBynumber(int(req.Number))
+	if err != nil {
+		return err
+	}
+	if !member.ValidatePassword(req.Password) {
+		return fmt.Errorf("not authenticated")
+	}
+	token, err := createJwt(member)
+	if err != nil {
+		return err
+	}
+	resp := types.LoginResponse{
+		Token:  token,
+		Number: member.Number,
+	}
+
+	return WriteJson(w, http.StatusOK, resp)
+
 }
 func (s *APIServer) HandleExercises(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
@@ -120,7 +150,14 @@ func (s *APIServer) HandleCreateMember(w http.ResponseWriter, r *http.Request) e
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		return err
 	}
-	member, err := types.NewGymMember(*req)
+	member, err := types.NewGymMember(types.GymParams{
+		Name:       req.Name,
+		Age:        req.Age,
+		Gender:     req.Gender,
+		Height:     req.Height,
+		Weight:     req.Weight,
+		Membership: req.Membership, PersonalTrainer: req.PersonalTrainer},
+		req.Password)
 
 	if err != nil {
 		return err
@@ -128,13 +165,13 @@ func (s *APIServer) HandleCreateMember(w http.ResponseWriter, r *http.Request) e
 	if err := s.Store.CreateMember(member); err != nil {
 		return err
 	}
-	tokenString, err := createJwt(member)
-	if err != nil {
+	// tokenString, err := createJwt(member)
+	// if err != nil {
 
-		fmt.Println("error in creating jwt", err)
-		return err
-	}
-	fmt.Println("Jwt  token:", tokenString)
+	// 	fmt.Println("error in creating jwt", err)
+	// 	return err
+	// }
+	// fmt.Println("Jwt  token:", tokenString)
 
 	return WriteJson(w, http.StatusOK, member)
 }

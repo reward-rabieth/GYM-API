@@ -4,20 +4,38 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
+type LoginRequest struct {
+	Number   int64  `json:"number"`
+	Password string `json:"password"`
+}
+
+type LoginResponse struct {
+	Number int64  `json:"number"`
+	Token  string `json:"token"`
+}
+
 type Gymmember struct {
-	ID              int       `json:"id"`
-	Number          int64     `json:"membership_no"`
-	Name            string    `json:"name"`
-	Age             int       `json:"age"`
-	Gender          string    `json:"gender"`
-	Height          float64   `json:"height"`
-	Weight          float64   `json:"weight"`
-	Membership      string    `json:"membership"`
-	StartDate       time.Time `json:"start_date"`
-	EndDate         time.Time `json:"end_date"`
-	PersonalTrainer string    `json:"personal_trainer"`
+	ID                int       `json:"id"`
+	Number            int64     `json:"membership_no"`
+	Name              string    `json:"name"`
+	EncryptedPassword string    `json:"-"`
+	Age               int       `json:"age"`
+	Gender            string    `json:"gender"`
+	Height            float64   `json:"height"`
+	Weight            float64   `json:"weight"`
+	Membership        string    `json:"membership"`
+	StartDate         time.Time `json:"start_date"`
+	EndDate           time.Time `json:"end_date"`
+	PersonalTrainer   string    `json:"personal_trainer"`
+}
+
+func (a *Gymmember) ValidatePassword(pwd string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(a.EncryptedPassword), []byte(pwd)) == nil
+
 }
 
 type Exercise struct {
@@ -65,22 +83,41 @@ type CreateGymMemberRequest struct {
 	Height     float64 `json:"height"`
 	Weight     float64 `json:"weight"`
 	Membership string  `json:"membership"`
-	//StartDate       time.Time `json:"start_date"`
+	Password   string  `json:"password"`
+	//StartDate     time.Time `json:"start_date"`
 	//EndDate         time.Time `json:"end_date"`
 	PersonalTrainer string `json:"personal_trainer"`
 }
 
-func NewGymMember(req CreateGymMemberRequest) (*Gymmember, error) {
+type GymParams struct {
+	Name       string
+	Age        int
+	Gender     string
+	Height     float64
+	Weight     float64
+	Membership string
+
+	//StartDate     time.Time `json:"start_date"`
+	//EndDate         time.Time `json:"end_date"`
+	PersonalTrainer string
+}
+
+func NewGymMember(req GymParams, password string) (*Gymmember, error) {
+	encrpwd, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Gymmember{
-			Name:       req.Name,
-			Age:        req.Age,
-			Number:     int64(rand.Intn(1000)),
-			Gender:     req.Gender,
-			Height:     req.Height,
-			Weight:     req.Weight,
-			Membership: req.Membership,
-			StartDate:  time.Now(),
+			Name:              req.Name,
+			Age:               req.Age,
+			Number:            int64(rand.Intn(1000)),
+			EncryptedPassword: string(encrpwd),
+			Gender:            req.Gender,
+			Height:            req.Height,
+			Weight:            req.Weight,
+			Membership:        req.Membership,
+			StartDate:         time.Now(),
 			//EndDate:         req.EndDate,
 			PersonalTrainer: req.PersonalTrainer,
 		},

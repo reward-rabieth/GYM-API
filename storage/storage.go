@@ -18,6 +18,7 @@ type Storage interface {
 	GetExercises() ([]*types.Exercise, error)
 	CreateExercise(*types.Exercise) error
 	GetMemberByid(int) (*types.Gymmember, error)
+	GetMemberBynumber(int) (*types.Gymmember, error)
 }
 
 type PostgresStorage struct {
@@ -59,6 +60,7 @@ func (p *PostgresStorage) CreateMemberTable() error {
 		id serial primary key,
 		number serial,
 		name varchar(255),
+		encrypted_password varchar(100),
 		age int,
 		gender varchar(255),
 		height float,
@@ -68,7 +70,6 @@ func (p *PostgresStorage) CreateMemberTable() error {
 		end_date timestamp,
 		personal_trainer varchar(50)
 
-		
 		)`
 	_, err := p.db.Query(query)
 	return err
@@ -77,13 +78,14 @@ func (p *PostgresStorage) CreateMemberTable() error {
 func (p *PostgresStorage) CreateMember(member *types.Gymmember) error {
 
 	query := `INSERT INTO members 
-	 (number, name,age,gender,height,weight,membership,start_date,end_date,personal_trainer)
-	values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+	 (number, name,encrypted_password,age,gender,height,weight,membership,start_date,end_date,personal_trainer)
+	values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 	`
 	_, err := p.db.Query(
 		query,
 		member.Number,
 		member.Name,
+		member.EncryptedPassword,
 		member.Age,
 		member.Gender,
 		member.Height,
@@ -97,6 +99,17 @@ func (p *PostgresStorage) CreateMember(member *types.Gymmember) error {
 		return err
 	}
 	return nil
+}
+
+func (P *PostgresStorage) GetMemberBynumber(number int) (*types.Gymmember, error) {
+	rows, err := P.db.Query("select * from members where number=$1", number)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		return scanIntoMembers(rows)
+	}
+	return nil, fmt.Errorf("member with membership number  [%d] not found", number)
 }
 func (P *PostgresStorage) GetMemberByid(id int) (*types.Gymmember, error) {
 
@@ -225,6 +238,7 @@ func scanIntoMembers(rows *sql.Rows) (*types.Gymmember, error) {
 		&member.ID,
 		&member.Number,
 		&member.Name,
+		&member.EncryptedPassword,
 		&member.Age,
 		&member.Gender,
 		&member.Height,
